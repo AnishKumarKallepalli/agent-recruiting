@@ -1,11 +1,25 @@
 """
 Webhook handlers for AgentPhone and AgentMail events.
 
-AgentPhone events:
-  - agent.call_ended  → transcript arrives, Gemini processes it, triggers next step
+Payload reference: https://docs.agentphone.ai/documentation/guides/webhooks#webhook-payload
 
-AgentMail events:
-  - message.received  → candidate replied to follow-up (log it)
+agent.call_ended envelope:
+{
+  "event": "agent.call_ended",
+  "channel": "voice",
+  "agentId": "...",
+  "timestamp": "...",
+  "data": {
+    "callId": "...",           ← camelCase, inside data
+    "from": "...",
+    "to": "...",
+    "direction": "inbound"|"outbound",
+    "durationSeconds": 120,   ← inside data
+    "transcript": [{"role": "user"|"assistant", "content": "..."}],  ← ARRAY
+    "summary": "...",
+    "callSuccessful": true
+  }
+}
 """
 import json
 import logging
@@ -16,130 +30,146 @@ from fastapi import APIRouter, Request, BackgroundTasks
 from agents import gemini
 import db
 from services import agentmail
-from config import settings
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
 
-# Demo founder — used for all inbound intake calls
 DEMO_FOUNDER = {"name": "Demo Founder", "phone": "+10000000000", "email": "founder@demo.com"}
+
+
+def _transcript_to_str(transcript) -> str:
+    """
+    Convert AgentPhone transcript to a plain string Gemini can process.
+    Docs: transcript is an array of {role, content} objects.
+    Falls back gracefully if it arrives as a plain string (e.g. future API change).
+    """
+    if not transcript:
+        return ""
+    if isinstance(transcript, str):
+        return transcript
+    if isinstance(transcript, list):
+        lines = []
+        for turn in transcript:
+            role = turn.get("role", "unknown").capitalize()
+            content = turn.get("content", "")
+            lines.append(f"{role}: {content}")
+        return "\n".join(lines)
+    return str(transcript)
+
+
+def _transcript_len(transcript) -> int:
+    """Return meaningful length — number of turns if array, char count if string."""
+    if isinstance(transcript, list):
+        return len(transcript)
+    if isinstance(transcript, str):
+        return len(transcript.strip())
+    return 0
 
 
 # ── AgentPhone ─────────────────────────────────────────────────────────────────
 
 @router.post("/agentphone")
 async def agentphone_webhook(request: Request, background_tasks: BackgroundTasks):
-    """Receive AgentPhone events. Log full payload so we can see exact shape on first call."""
+    """Receive AgentPhone events."""
     payload = await request.json()
 
-    # Log EVERYTHING on first call — helps us verify field names
-    logger.info(f"AgentPhone webhook raw payload: {json.dumps(payload, indent=2)}")
+    # Log full payload on every call — essential for debugging
+    logger.info(f"AgentPhone webhook:\n{json.dumps(payload, indent=2)}")
 
-    # AgentPhone may use different field names — try all known variants
-    event_type = (
-        payload.get("event")
-        or payload.get("type")
-        or payload.get("eventType")
-        or payload.get("event_type")
-        or ""
-    )
-    logger.info(f"AgentPhone event type: {event_type!r}")
+    event_type = payload.get("event", "")
+    logger.info(f"Event type: {event_type!r}")
 
-    if "call_ended" in event_type.lower() or event_type == "":
-        # Some providers send no event type for call_ended — handle both
-        if payload.get("transcript") or payload.get("summary"):
-            background_tasks.add_task(_handle_call_ended, payload)
+    if event_type == "agent.call_ended":
+        background_tasks.add_task(_handle_call_ended, payload)
+
+    # voice turn in webhook mode — not used (Built-in AI mode), but handle gracefully
+    elif event_type == "agent.message" and payload.get("channel") == "voice":
+        logger.info("Voice turn received (webhook mode) — not handled in Built-in AI mode")
 
     return {"ok": True}
 
 
 async def _handle_call_ended(payload: dict):
     """Route completed call to intake or screening handler."""
-    # Try multiple possible field names for call ID
-    agentphone_call_id = (
-        payload.get("call_id")
-        or payload.get("callId")
-        or payload.get("id")
-        or ""
-    )
-    transcript = (
-        payload.get("transcript")
-        or payload.get("transcription")
-        or payload.get("transcript_text")
-        or ""
-    )
-    duration = (
-        payload.get("duration_seconds")
-        or payload.get("duration")
-        or payload.get("durationSeconds")
-        or 0
-    )
+    data = payload.get("data", {})
 
-    logger.info(f"Call ended — id={agentphone_call_id}, transcript length={len(transcript)}")
+    # All fields live inside `data` per docs
+    agentphone_call_id = data.get("callId", "")
+    transcript_raw = data.get("transcript", [])   # array of {role, content}
+    duration = data.get("durationSeconds", 0)
+    direction = data.get("direction", "")          # "inbound" | "outbound"
+    call_successful = data.get("callSuccessful", False)
+
+    transcript_str = _transcript_to_str(transcript_raw)
+    transcript_turns = _transcript_len(transcript_raw)
+
+    logger.info(
+        f"Call ended — id={agentphone_call_id} direction={direction} "
+        f"turns={transcript_turns} duration={duration}s successful={call_successful}"
+    )
 
     # Check if this is a known outbound screening call
     call_record = db.get_call_by_agentphone_id(agentphone_call_id) if agentphone_call_id else None
 
     if call_record and call_record.get("call_type") == "screening":
-        await _process_screening_call(call_record, transcript, duration)
+        await _process_screening_call(call_record, transcript_raw, transcript_str, duration)
     else:
-        # Unknown call = inbound intake call from a founder
+        # Inbound call from founder = intake
         logger.info("No matching call record — treating as inbound intake call")
-        await _process_inbound_intake(agentphone_call_id, transcript, duration, payload)
+        await _process_inbound_intake(agentphone_call_id, transcript_raw, transcript_str, duration)
 
 
-async def _process_inbound_intake(agentphone_call_id: str, transcript: str, duration: int, payload: dict):
+async def _process_inbound_intake(
+    agentphone_call_id: str,
+    transcript_raw: list,
+    transcript_str: str,
+    duration: int,
+):
     """
     Handle an inbound call from a founder.
-    Creates founder + role on the fly, extracts brief, loads candidates, calls top candidate.
+    Creates founder + role, extracts brief via Gemini, loads candidates, calls top candidate.
     """
-    if not transcript or len(transcript.strip()) < 30:
-        logger.warning("Intake call ended with no/short transcript — skipping")
+    if _transcript_len(transcript_raw) < 2:
+        logger.warning(f"Intake call has too few turns ({_transcript_len(transcript_raw)}) — skipping")
         return
 
-    # Get or create the demo founder
-    founder = db.get_or_create_founder(
-        name=DEMO_FOUNDER["name"],
-        phone=DEMO_FOUNDER["phone"],
-        email=DEMO_FOUNDER["email"],
-    )
+    founder = db.get_or_create_founder(**DEMO_FOUNDER)
 
-    # Create a placeholder role (will be filled by Gemini below)
+    # Create placeholder role
     role_row = db.create_role(founder["id"], {
         "title": "Pending extraction",
-        "raw_transcript": transcript,
+        "raw_transcript": transcript_str,
     })
     role_id = role_row["id"]
 
-    # Log the intake call
+    # Record the call
     call_row = db.create_call(
         call_type="intake",
         role_id=role_id,
         agentphone_call_id=agentphone_call_id,
     )
-    db.update_call(call_row["id"], status="completed", transcript=transcript, duration_seconds=duration)
+    db.update_call(call_row["id"], status="completed", transcript=transcript_str, duration_seconds=duration)
 
-    logger.info(f"Intake call recorded. Role ID: {role_id}. Extracting brief...")
+    logger.info(f"Intake call saved. Role ID: {role_id}. Running Gemini extraction...")
 
-    # Extract structured brief from transcript via Gemini
-    brief = gemini.extract_role_brief(transcript)
+    # Extract structured brief
+    brief = gemini.extract_role_brief(transcript_str)
     brief["id"] = role_id
 
-    # Update role with extracted fields
     db.get_db().table("roles").update({
-        "title": brief.get("title"),
-        "company": brief.get("company"),
-        "location": brief.get("location"),
-        "must_haves": brief.get("must_haves", []),
-        "nice_haves": brief.get("nice_haves", []),
-        "comp_range": brief.get("comp_range"),
+        "title":             brief.get("title"),
+        "company":           brief.get("company"),
+        "location":          brief.get("location"),
+        "must_haves":        brief.get("must_haves", []),
+        "nice_haves":        brief.get("nice_haves", []),
+        "comp_range":        brief.get("comp_range"),
         "target_background": brief.get("target_background"),
-        "dealbreakers": brief.get("dealbreakers"),
-        "booking_link": brief.get("booking_link"),
-        "raw_transcript": transcript,
+        "dealbreakers":      brief.get("dealbreakers"),
+        "booking_link":      brief.get("booking_link"),
+        "raw_transcript":    transcript_str,
     }).eq("id", role_id).execute()
 
-    logger.info(f"Role brief extracted: {brief.get('title')} @ {brief.get('company')}")
+    logger.info(f"Brief extracted: {brief.get('title')} @ {brief.get('company')}")
 
     # Load pre-cached candidates
     candidates_path = os.path.join(os.path.dirname(__file__), "..", "data", "candidates.json")
@@ -147,42 +177,60 @@ async def _process_inbound_intake(agentphone_call_id: str, transcript: str, dura
         cached = json.load(f)
 
     inserted = db.insert_candidates(role_id, cached)
-    logger.info(f"Loaded {len(inserted)} candidates for role {role_id}")
+    logger.info(f"Loaded {len(inserted)} candidates")
 
-    # Call the top candidate
+    # Call top candidate immediately
     top = max(inserted, key=lambda c: c.get("fit_score", 0))
-    logger.info(f"Top candidate: {top['name']} ({top['fit_score']}% fit) — initiating call")
-
+    logger.info(f"Top candidate: {top['name']} ({top['fit_score']}%) — initiating call")
     await _initiate_screening_call(top, brief)
 
 
-async def _process_screening_call(call_record: dict, transcript: str, duration: int):
+async def _process_screening_call(
+    call_record: dict,
+    transcript_raw: list,
+    transcript_str: str,
+    duration: int,
+):
     """Summarize screening call, update candidate status, send follow-up email if qualified."""
     candidate_id = call_record.get("candidate_id")
     role_id = call_record["role_id"]
 
     role = db.get_role(role_id)
-    candidate = db.get_db().table("candidates").select("*").eq("id", candidate_id).single().execute().data
+    candidate = (
+        db.get_db()
+        .table("candidates")
+        .select("*")
+        .eq("id", candidate_id)
+        .single()
+        .execute()
+        .data
+    )
 
-    # Detect voicemail / no answer
-    if not transcript or len(transcript.strip()) < 20:
-        logger.info(f"No transcript — marking as voicemail for {candidate['name']}")
-        db.update_call(call_record["id"], status="voicemail", transcript=transcript,
-                       outcome="voicemail", duration_seconds=duration,
-                       summary="Candidate did not answer. Voicemail left.")
+    # Voicemail / no answer = 0 or 1 turns
+    if _transcript_len(transcript_raw) < 2:
+        logger.info(f"No real conversation — voicemail for {candidate['name']}")
+        db.update_call(
+            call_record["id"],
+            status="voicemail", transcript=transcript_str,
+            outcome="voicemail", duration_seconds=duration,
+            summary="Candidate did not answer. Voicemail left.",
+        )
         db.update_candidate_status(candidate_id, "rejected")
         return
 
-    result = gemini.summarize_screening_call(transcript, role, candidate["name"])
+    result = gemini.summarize_screening_call(transcript_str, role, candidate["name"])
     outcome = result.get("outcome", "rejected")
-    summary = result.get("summary", "")
 
-    db.update_call(call_record["id"], status="completed", transcript=transcript,
-                   outcome=outcome, duration_seconds=duration, summary=summary)
+    db.update_call(
+        call_record["id"],
+        status="completed", transcript=transcript_str,
+        outcome=outcome, duration_seconds=duration,
+        summary=result.get("summary", ""),
+    )
 
     new_status = "qualified" if outcome == "qualified" else "rejected"
     db.update_candidate_status(candidate_id, new_status)
-    logger.info(f"Candidate {candidate['name']} → {new_status}")
+    logger.info(f"{candidate['name']} → {new_status}")
 
     # Send follow-up email if qualified
     if result.get("send_followup") and candidate.get("email"):
@@ -226,9 +274,15 @@ async def _initiate_screening_call(candidate: dict, role_brief: dict):
                 f"Do you have 30 seconds?"
             ),
         )
-        ap_call_id = call_resp.get("id") or call_resp.get("callId") or call_resp.get("call_id")
+        # Response shape not formally documented — try known patterns
+        ap_call_id = (
+            call_resp.get("callId")
+            or call_resp.get("id")
+            or call_resp.get("call_id")
+            or ""
+        )
         db.update_call(call_row["id"], agentphone_call_id=ap_call_id)
-        logger.info(f"Outbound call to {candidate['name']} initiated — AP call id: {ap_call_id}")
+        logger.info(f"Outbound call to {candidate['name']} initiated — callId: {ap_call_id}")
     except Exception as e:
         logger.error(f"Failed to call {candidate['name']}: {e}")
         db.update_call(call_row["id"], status="failed")
@@ -238,13 +292,12 @@ async def _initiate_screening_call(candidate: dict, role_brief: dict):
 
 @router.post("/agentmail")
 async def agentmail_webhook(request: Request):
-    """Receive AgentMail events (candidate replies)."""
+    """Receive AgentMail events."""
     payload = await request.json()
-    logger.info(f"AgentMail webhook: {json.dumps(payload, indent=2)}")
+    logger.info(f"AgentMail webhook:\n{json.dumps(payload, indent=2)}")
 
-    event_type = payload.get("event_type", "")
-    if event_type == "message.received":
+    if payload.get("event_type") == "message.received":
         data = payload.get("data", {})
-        logger.info(f"Email reply from {data.get('from')} — subject: {data.get('subject')}")
+        logger.info(f"Reply from {data.get('from')} — {data.get('subject')}")
 
     return {"ok": True}
