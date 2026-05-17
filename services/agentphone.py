@@ -11,7 +11,7 @@ HEADERS = {"Authorization": f"Bearer {settings.agentphone_api_key}", "Content-Ty
 
 # ── Agent + Number setup (run once) ───────────────────────────────────────────
 
-def create_agent(name: str = "Ava") -> dict:
+def create_agent(name: str = "Agent") -> dict:
     """Create an AgentPhone agent. Run once, save the ID to .env."""
     r = httpx.post(f"{BASE}/agents", headers=HEADERS, json={"name": name})
     r.raise_for_status()

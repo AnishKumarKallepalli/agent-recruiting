@@ -1,7 +1,7 @@
 """All Gemini prompts in one place — easy to tweak."""
 
 INTAKE_EXTRACTION_PROMPT = """
-You are Ava's backend. A founder just finished an intake call with Ava.
+You are the recruiting agent's backend. A founder just finished an intake call.
 Extract a structured hiring brief from the transcript below.
 
 Transcript:
@@ -22,7 +22,7 @@ Return ONLY valid JSON with these fields (use null if not mentioned):
 """
 
 CANDIDATE_SCORING_PROMPT = """
-You are Ava's recruiter brain. Score this candidate against the role brief.
+You are the recruiting agent's brain. Score this candidate against the role brief.
 
 Role Brief:
 {role_brief}
@@ -49,7 +49,7 @@ Candidate:
 {candidate_name}, {candidate_title}, {candidate_location}
 
 The script should:
-1. Introduce Ava and mention the role (15 seconds max)
+1. Introduce yourself and mention the role (15 seconds max)
 2. Ask if they're open to new opportunities
 3. Confirm 2-3 must-have skills quickly
 4. Ask about location/comp alignment
@@ -60,7 +60,7 @@ Return ONLY the call script as plain text.
 """
 
 SCREENING_SUMMARY_PROMPT = """
-You are Ava's backend. A candidate screening call just ended.
+You are the recruiting agent's backend. A candidate screening call just ended.
 Analyze the transcript and extract the outcome.
 
 Role Brief:
@@ -114,7 +114,7 @@ Write a short voicemail script (under 30 seconds) for a candidate who didn't ans
 
 Role: {role_title} at {company}
 Candidate: {candidate_name}
-Callback: Ava's number is {ava_phone}
+Callback: Agent's number is {ava_phone}
 
 Keep it friendly, specific, and end with a clear action (call back or expect an email).
 Return ONLY the voicemail script as plain text.

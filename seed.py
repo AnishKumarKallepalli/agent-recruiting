@@ -55,7 +55,7 @@ if __name__ == "__main__":
         check()
         show_candidates()
     else:
-        print("\n🧹 Resetting Ava demo database...\n")
+        print("\n🧹 Resetting Agent demo database...\n")
         wipe()
         check()
         show_candidates()

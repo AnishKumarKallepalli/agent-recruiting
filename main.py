@@ -1,5 +1,5 @@
 """
-Ava — AI Recruiting Agent
+Agent — AI Recruiting Agent
 FastAPI backend
 """
 import logging
@@ -16,12 +16,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.info("Ava backend starting up...")
+    logging.info("Agent backend starting up...")
     yield
-    logging.info("Ava backend shutting down.")
+    logging.info("Agent backend shutting down.")
 
 
-app = FastAPI(title="Ava — AI Recruiting Agent", lifespan=lifespan)
+app = FastAPI(title="Agent — AI Recruiting Agent", lifespan=lifespan)
 
 app.include_router(webhooks.router)
 app.include_router(dashboard.router)
@@ -38,4 +38,4 @@ def serve_dashboard():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "agent": "Ava"}
+    return {"status": "ok", "agent": "Agent"}
