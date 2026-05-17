@@ -96,7 +96,7 @@ async def _handle_call_ended(payload: dict):
     # All fields live inside `data` per docs
     agentphone_call_id = data.get("callId", "")
     transcript_raw = data.get("transcript", [])   # array of {role, content}
-    duration = data.get("durationSeconds", 0)
+    duration = int(data.get("durationSeconds") or 0)  # AgentPhone returns float e.g. 30.37
     direction = data.get("direction", "")          # "inbound" | "outbound"
     call_successful = data.get("callSuccessful", False)
 
