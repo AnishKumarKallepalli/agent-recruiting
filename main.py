@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from routers import webhooks, dashboard
+from routers import webhooks, dashboard, test
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
@@ -25,6 +25,7 @@ app = FastAPI(title="Ava — AI Recruiting Agent", lifespan=lifespan)
 
 app.include_router(webhooks.router)
 app.include_router(dashboard.router)
+app.include_router(test.router)
 
 # Serve the dashboard HTML
 app.mount("/static", StaticFiles(directory="dashboard"), name="static")
