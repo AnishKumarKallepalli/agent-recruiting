@@ -3,33 +3,33 @@
     "name": "Alex Chen",
     "current_title": "Senior AI Engineer",
     "location": "San Francisco, CA",
-    "email": "alex.chen.demo@example.com",
-    "phone": "+14155550001",
-    "profile_url": "https://github.com/alexchen-ai",
+    "email": "anishkumar2002.k@gmail.com",
+    "phone": "+16199538267",
+    "profile_url": "https://github.com/alexchen-sf",
     "fit_score": 94,
-    "fit_reason": "Strong Python and LLM agent background from two SF AI startups. Built production voice AI and backend infra. Actively looking.",
-    "raw_profile": "5 years experience, ex-Cohere, ex-Letta. Open source contributions to LangChain and AutoGPT. SF-based, looking for founding engineer roles."
+    "fit_reason": "Built LLM agent infra at Letta (ex-MemGPT) and voice AI pipelines at a stealth SF startup. Deep Python, strong on backend systems. Actively exploring founding engineer roles.",
+    "raw_profile": "5 yrs experience. Ex-Letta (MemGPT), ex-stealth voice AI startup. Shipped production RAG systems, voice agents, and distributed inference infra. Open source contributor to LangChain. SF-based, looking for founding engineer opportunity. Comp target $180-200k."
   },
   {
     "name": "Maya Patel",
     "current_title": "ML Engineer",
     "location": "San Francisco, CA",
-    "email": "maya.patel.demo@example.com",
-    "phone": "+14155550002",
-    "profile_url": "https://linkedin.com/in/maya-patel-ml",
+    "email": "maya.patel.hiring@gmail.com",
+    "phone": "+14085550102",
+    "profile_url": "https://linkedin.com/in/mayapatel-ml",
     "fit_score": 87,
-    "fit_reason": "Deep ML and Python skills, startup background. Has shipped LLM-based products end-to-end. SF location confirmed.",
-    "raw_profile": "4 years experience, ex-Scale AI, ex-Weights & Biases. Built fine-tuning pipelines and RAG systems. Looking for senior IC roles."
+    "fit_reason": "Strong ML and Python background, shipped LLM products end-to-end at Scale AI and W&B. Startup experience, SF-based. Slightly less voice AI exposure than ideal.",
+    "raw_profile": "4 yrs experience. Ex-Scale AI (LLM data pipelines), ex-Weights & Biases (MLOps tooling). Built fine-tuning infra and RAG systems. Wellfound profile active. SF-based. Comp target $160-180k."
   },
   {
     "name": "Jordan Kim",
-    "current_title": "Backend Engineer → AI Infra",
+    "current_title": "Backend Engineer, AI Infra",
     "location": "San Francisco, CA",
-    "email": "jordan.kim.demo@example.com",
-    "phone": "+14155550003",
-    "profile_url": "https://github.com/jordankim-dev",
+    "email": "jordan.kim.eng@gmail.com",
+    "phone": "+14085550103",
+    "profile_url": "https://github.com/jordankim-eng",
     "fit_score": 81,
-    "fit_reason": "Solid backend + infra chops, transitioning into AI. Strong Python, some LLM agent work. Comp expectations slightly above range.",
-    "raw_profile": "6 years backend, last 18 months focused on AI tooling. Built internal LLM orchestration system at mid-stage startup. SF-based."
+    "fit_reason": "Solid Python and backend infra, built internal LLM orchestration at a Series A startup. Transitioning fully into AI. Comp expectations at the top of range.",
+    "raw_profile": "6 yrs backend engineering, last 18 months on AI tooling. Built LLM orchestration layer handling 10M+ daily requests. SF-based. Comp target $200-220k — slightly above stated range."
   }
 ]
