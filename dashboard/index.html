@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Ava - AI Recruiting Agent</title>
+<link rel="icon" type="image/png" href="../../logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -11,9 +12,6 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
 <style>
-/* ─── REPLACE THESE WITH REAL RECORDING URLS BEFORE DEMO ─── */
-/* FOUNDER_CALL_AUDIO and ALEX_CALL_AUDIO are set in the JS below */
-
 :root {
   --bg:#F7F5F0; --bg-card:#FFF; --bg-elev:#FAF8F3;
   --ink:#1A1814; --ink-1:#2C2924; --ink-2:#5C574E; --ink-3:#8A8479; --ink-4:#B5AEA0;
@@ -257,7 +255,6 @@ button{font:inherit;cursor:default}
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 // ═══════════════════════════════════════════════════════════════════
-// DEMO DATA -swap transcripts + audio URLs with real recordings
 // ═══════════════════════════════════════════════════════════════════
 
 // Set to recording URL after calls are made, e.g. "https://..."
@@ -687,8 +684,8 @@ function App() {
                           setAL(l=>[...l, line]);
                           ai++;
                           setATA(null);
-                          setTimeout(alexNext, 1400);
-                        }, 1000);
+                          setTimeout(alexNext, 900);
+                        }, 600);
                       }
                       setTimeout(alexNext, 500);
                     }, 2000);
@@ -758,9 +755,6 @@ function App() {
           <span className={`phase-chip${isActive?" active":""}${phase===PHASES.COMPLETE?" done":""}`}>
             {phaseLabel}
           </span>
-          {phase!==PHASES.IDLE && (
-            <span className="timer mono">{fmtTime(elapsed)}</span>
-          )}
         </div>
       </header>
 

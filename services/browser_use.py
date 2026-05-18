@@ -1,8 +1,4 @@
-"""
-Browser Use cloud API wrapper.
-For the demo, candidate sourcing is PRE-RUN and results are cached in data/candidates.json.
-This module is here for completeness and to show sourcing is real.
-"""
+"""Browser Use cloud API wrapper for candidate sourcing."""
 import httpx
 from config import settings
 
@@ -15,8 +11,7 @@ def run_sourcing_task(role_brief: dict) -> str:
     Kick off a browser task to source candidates.
     Returns a task_id — poll get_task_result() until done.
 
-    USE SPARINGLY — consumes credits. Pre-run before demo and cache results.
-    """
+"""
     instruction = (
         f"Search GitHub profiles, Wellfound, and LinkedIn for engineers who match this role: "
         f"{role_brief.get('title')} in {role_brief.get('location')}. "

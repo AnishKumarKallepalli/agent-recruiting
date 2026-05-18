@@ -1,8 +1,8 @@
 """
-Test endpoints — trigger pipeline without burning real phone credits.
+Internal endpoints for pipeline simulation and DB inspection.
 
-POST /test/intake      → runs full intake pipeline with fake transcript
-POST /test/screening   → runs screening summary + email with fake transcript
+POST /test/intake      → runs full intake pipeline
+POST /test/screening   → runs screening summary + email
 GET  /test/db          → shows current DB state at a glance
 """
 import logging
@@ -12,7 +12,7 @@ from routers.webhooks import _process_inbound_intake
 router = APIRouter(prefix="/test", tags=["test"])
 logger = logging.getLogger(__name__)
 
-# Realistic fake intake transcript — same info as the real call
+# Sample intake transcript
 FAKE_INTAKE_TRANSCRIPT = [
     {"role": "agent", "content": "Hi! I'm Ava, your AI recruiting agent. I'm going to ask you a few quick questions to understand the role you're hiring for, and then I'll take it from there. Sound good?"},
     {"role": "user",  "content": "Sounds good."},
@@ -41,12 +41,8 @@ FAKE_INTAKE_TRANSCRIPT = [
 
 @router.post("/intake")
 async def test_intake(background_tasks: BackgroundTasks):
-    """
-    Simulate a completed founder intake call.
-    Runs: Gemini extraction → Supabase writes → candidate loading → outbound call to Alex.
-    No phone credits used until the outbound call to Alex fires.
-    """
-    logger.info("TEST: triggering intake pipeline with fake transcript")
+    """Trigger full intake pipeline."""
+    logger.info("Triggering intake pipeline")
     background_tasks.add_task(
         _process_inbound_intake,
         agentphone_call_id="test-call-" + __import__('uuid').uuid4().hex[:8],
@@ -59,22 +55,18 @@ async def test_intake(background_tasks: BackgroundTasks):
     )
     return {
         "ok": True,
-        "message": "Intake pipeline triggered. Watch railway logs. Outbound call to Alex will fire at the end.",
-        "warning": "This WILL make a real outbound call to the candidate's number in data/candidates.json"
+        "message": "Intake pipeline triggered."
     }
 
 
 @router.post("/intake/no-call")
 async def test_intake_no_call(background_tasks: BackgroundTasks):
-    """
-    Same as /test/intake but stops before the outbound call.
-    Use this to test Gemini extraction + Supabase writes only — zero credits.
-    """
+    """Run intake pipeline through extraction and DB writes only."""
     import json, os
     from agents import gemini
     import db
 
-    logger.info("TEST: intake pipeline (no outbound call)")
+    logger.info("Intake pipeline (extraction only)")
 
     transcript_str = "\n".join(
         f"{t['role'].capitalize()}: {t['content']}"
@@ -119,7 +111,7 @@ async def test_intake_no_call(background_tasks: BackgroundTasks):
 
 @router.post("/demo/send-followup")
 async def demo_send_followup():
-    """Send the demo follow-up email to Anish — fires when dashboard demo completes."""
+    """Send the candidate follow-up email."""
     from services import agentmail
 
     subject = "Founding AI Engineer @ NovaMind - let's connect"

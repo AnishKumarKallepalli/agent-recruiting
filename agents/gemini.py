@@ -12,7 +12,6 @@ from agents.prompts import (
 )
 
 genai.configure(api_key=settings.gemini_api_key)
-# Flash — fast + cheap. Only upgrade to Pro if quality is bad.
 _model = genai.GenerativeModel("gemini-2.5-flash")
 
 
