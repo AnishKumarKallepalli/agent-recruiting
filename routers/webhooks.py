@@ -239,6 +239,7 @@ async def _process_screening_call(
             to=candidate["email"],
             subject=email_content["subject"],
             body=email_content["body"],
+            html=email_content.get("html"),
         )
         db.create_email(
             candidate_id=candidate_id,
@@ -264,13 +265,16 @@ async def _initiate_screening_call(candidate: dict, role_brief: dict):
     db.update_candidate_status(candidate["id"], "calling")
 
     try:
+        company  = role_brief.get("company")  or "NovaMind AI"
+        title    = role_brief.get("title")    or "Founding AI Engineer"
+        location = role_brief.get("location") or "San Francisco"
         call_resp = make_call(
             to_phone=candidate["phone"],
             system_prompt=script,
             initial_greeting=(
-                f"Hi {candidate['name'].split()[0]}, this is Ava from HyperVelocity. "
-                f"I'm reaching out about a {role_brief.get('title', 'founding engineer')} role "
-                f"at an early-stage AI startup in {role_brief.get('location', 'San Francisco')}. "
+                f"Hi {candidate['name'].split()[0]}, this is Ava calling on behalf of {company}. "
+                f"I'm reaching out about a {title} role "
+                f"in {location}. "
                 f"Do you have 30 seconds?"
             ),
         )

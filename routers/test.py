@@ -117,6 +117,79 @@ async def test_intake_no_call(background_tasks: BackgroundTasks):
     }
 
 
+@router.post("/demo/send-followup")
+async def demo_send_followup():
+    """Send the demo follow-up email to Anish — fires when dashboard demo completes."""
+    from services import agentmail
+
+    subject = "Founding AI Engineer @ NovaMind - let's connect"
+    body = (
+        "Hi Alex,\n\n"
+        "Great speaking with you just now! I wanted to follow up on the Founding AI Engineer role at NovaMind.\n\n"
+        "Given your background shipping LLM agent infrastructure at Letta and production voice AI pipelines, "
+        "you're exactly the profile they're looking for. This is a founding-team seat — high ownership, "
+        "real equity, and a chance to shape the architecture from day one.\n\n"
+        "Book time directly with the founder here: cal.com/novamind\n\n"
+        "Talk soon,\n"
+        "Ava (AI recruiting agent)"
+    )
+    html = """<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5dfd2">
+  <tr><td style="background:#1a1814;padding:24px 32px">
+    <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.02em">Founding AI Engineer</div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.55);margin-top:4px">at NovaMind</div>
+  </td></tr>
+  <tr><td style="padding:32px">
+    <p style="margin:0 0 16px;font-size:15px;color:#2c2924">Hi Alex,</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#2c2924;line-height:1.6">
+      Great speaking with you just now! I wanted to follow up on the <strong>Founding AI Engineer</strong> role at NovaMind.
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;color:#2c2924;line-height:1.6">
+      Your background shipping LLM agent infrastructure at Letta and production voice AI pipelines is exactly what they're looking for.
+      This is a founding-team seat — high ownership, real equity, and a chance to shape the architecture from day one.
+    </p>
+    <div style="background:#f5f4ef;border:1px solid #e5dfd2;border-radius:8px;padding:18px 20px;margin:20px 0">
+      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#8a8479;margin-bottom:10px">Quick details</div>
+      <table cellpadding="0" cellspacing="0" width="100%">
+        <tr><td style="font-size:13px;color:#5c574e;padding:3px 0">Role</td><td style="font-size:13px;color:#1a1814;font-weight:500;text-align:right">Founding AI Engineer</td></tr>
+        <tr><td style="font-size:13px;color:#5c574e;padding:3px 0">Company</td><td style="font-size:13px;color:#1a1814;font-weight:500;text-align:right">NovaMind</td></tr>
+        <tr><td style="font-size:13px;color:#5c574e;padding:3px 0">Location</td><td style="font-size:13px;color:#1a1814;font-weight:500;text-align:right">San Francisco, in-person</td></tr>
+        <tr><td style="font-size:13px;color:#5c574e;padding:3px 0">Comp</td><td style="font-size:13px;color:#1a1814;font-weight:500;text-align:right">$150-200k + equity</td></tr>
+      </table>
+    </div>
+    <p style="margin:0 0 24px;font-size:15px;color:#2c2924;line-height:1.6">
+      Use the link below to book a 30-minute call directly with the founder:
+    </p>
+    <table cellpadding="0" cellspacing="0"><tr><td>
+      <a href="https://cal.com/novamind" style="display:inline-block;background:#1a1814;color:#fff;text-decoration:none;padding:13px 28px;border-radius:8px;font-size:14px;font-weight:600;letter-spacing:-0.01em">Book founder call &rarr;</a>
+    </td></tr></table>
+    <p style="margin:28px 0 0;font-size:14px;color:#8a8479;line-height:1.5">
+      Talk soon,<br>
+      <strong style="color:#2c2924">Ava</strong>, AI recruiting agent
+    </p>
+  </td></tr>
+  <tr><td style="background:#faf8f3;border-top:1px solid #e5dfd2;padding:16px 32px">
+    <p style="margin:0;font-size:11px;color:#b5aea0;text-align:center">Sent by Ava, an AI recruiting agent &middot; recagent@agentmail.to</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>"""
+
+    resp = agentmail.send_email(
+        to="anishkumar2002.k@gmail.com",
+        subject=subject,
+        body=body,
+        html=html,
+    )
+    logger.info(f"Demo follow-up email sent: {resp}")
+    return {"ok": True, "message_id": resp.get("message_id")}
+
+
 @router.get("/db")
 async def test_db_state():
     """Quick snapshot of current DB state."""

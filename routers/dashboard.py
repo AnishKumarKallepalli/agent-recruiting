@@ -1,8 +1,40 @@
 """Dashboard API — simple endpoints to feed the live status view."""
+import httpx
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+from config import settings
 import db
 
+FOUNDER_CALL_ID = "cmpah5blp048xjeebqqcki2ln"
+ALEX_CALL_ID    = "cmpah1q2c04rl5ipo19ct0dq8"
+
 router = APIRouter(prefix="/api", tags=["dashboard"])
+
+
+def _recording_response(call_id: str) -> StreamingResponse:
+    headers = {"Authorization": f"Bearer {settings.agentphone_api_key}"}
+    r = httpx.get(
+        f"https://api.agentphone.ai/v1/calls/{call_id}/recording",
+        headers=headers,
+        timeout=30,
+        follow_redirects=True,
+    )
+    r.raise_for_status()
+    return StreamingResponse(
+        iter([r.content]),
+        media_type="audio/wav",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get("/recordings/founder")
+def founder_recording():
+    return _recording_response(FOUNDER_CALL_ID)
+
+
+@router.get("/recordings/alex")
+def alex_recording():
+    return _recording_response(ALEX_CALL_ID)
 
 
 @router.get("/roles/{role_id}/status")

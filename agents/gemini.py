@@ -49,13 +49,27 @@ def score_candidate(role_brief: dict, candidate_profile: dict) -> dict:
     return _parse_json(raw)
 
 
+def _safe_brief(role_brief: dict) -> dict:
+    """Fill null/None fields that would produce 'None' in spoken text."""
+    return {
+        **role_brief,
+        "company":  role_brief.get("company")  or "NovaMind AI",
+        "title":    role_brief.get("title")    or "Founding AI Engineer",
+        "location": role_brief.get("location") or "San Francisco",
+    }
+
+
 def generate_screening_script(role_brief: dict, candidate: dict) -> str:
     """Generate an outbound call script for screening a candidate."""
+    brief = _safe_brief(role_brief)
     prompt = SCREENING_CALL_SCRIPT_PROMPT.format(
-        role_brief=json.dumps(role_brief, indent=2),
+        role_brief=json.dumps(brief, indent=2),
         candidate_name=candidate.get("name", ""),
         candidate_title=candidate.get("current_title", ""),
         candidate_location=candidate.get("location", ""),
+        fit_reason=candidate.get("fit_reason", "Strong background relevant to this role."),
+        title=brief.get("title") or "Founding AI Engineer",
+        company=brief.get("company") or "NovaMind AI",
     )
     return _call(prompt)
 
@@ -73,11 +87,12 @@ def summarize_screening_call(transcript: str, role_brief: dict, candidate_name: 
 
 def draft_followup_email(role_brief: dict, candidate: dict) -> dict:
     """Draft a follow-up email for a qualified candidate. Returns subject + body."""
+    brief = _safe_brief(role_brief)
     prompt = FOLLOWUP_EMAIL_PROMPT.format(
-        role_brief=json.dumps(role_brief, indent=2),
+        role_brief=json.dumps(brief, indent=2),
         candidate_name=candidate.get("name", ""),
         fit_reason=candidate.get("fit_reason", ""),
-        booking_link=role_brief.get("booking_link", "[booking link]"),
+        booking_link=brief.get("booking_link", "[booking link]"),
     )
     raw = _call(prompt)
     return _parse_json(raw)
